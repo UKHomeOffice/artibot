@@ -2,7 +2,7 @@
 
 A lambda function to prune Artifactory of unused images
 
-This function uses [github.com/lusis/go-artifactory](github.com/lusis/go-artifactory) to make an AQL search for images that have not been downloaded for a specified period. It then saves the results to a S3 bucket and makes API calls to delete those images.
+This function uses [github.com/lusis/go-artifactory](https://github.com/lusis/go-artifactory) to make an AQL search for images that have not been downloaded for a specified period. It then saves the results to a S3 bucket and makes API calls to delete those images.
 
 These envars need to be defined in AWS Lambda:
 ```
