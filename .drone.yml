@@ -8,3 +8,8 @@ pipeline:
       event: 
         - push
         - pull_request
+  sonar-scanner:
+    image: quay.io/ukhomeofficedigital/sonar-scanner:v3.0.3
+    when:
+      event:
+        - pull_request
