@@ -55,7 +55,10 @@ func search(cl *lib.Client, r string, c, m, d int) ([]byte, []extAQLFileInfo, er
 				{"stat.downloaded":{"$before": "%dmo"}}
 				]
 			}
-			).include("updated","created_by","repo","type","size","name","modified_by","path","modified","id","actual_sha1","created","stat.downloaded")`, r, c, m, d)
+			).include("updated","created_by","repo","type","size",
+			"name","modified_by","path","modified","id","actual_sha1",
+			"created","stat.downloaded")`, r, c, m, d)
+
 	request.Body = bytes.NewReader([]byte(aqlString))
 	request.ContentType = "text/plain"
 
@@ -77,14 +80,14 @@ func search(cl *lib.Client, r string, c, m, d int) ([]byte, []extAQLFileInfo, er
 }
 
 // upload the list to s3
-func upload(resp []byte, b, r string) error {
+func upload(resp []byte, b, rg, r string) error {
 
 	// put bytes in reader
 	file := bytes.NewReader(resp)
 
 	// configure s3 client
 	sess, err := session.NewSession(&aws.Config{
-		Region: aws.String("eu-west-2")},
+		Region: aws.String(rg)},
 	)
 
 	// use timestamp and repo as filename
@@ -140,27 +143,28 @@ func delete(cl *lib.Client, list *[]extAQLFileInfo) error {
 func handler() error {
 
 	// get envars
-	bucket := os.Getenv("bucket")
 	repo := os.Getenv("repo")
+	bucket := os.Getenv("bucket")
+	region := os.Getenv("region")
 
 	dry, err := strconv.ParseBool(os.Getenv("dry_run"))
 	if err != nil {
-		exitErrorf("could not convert type: ", err)
+		exitErrorf("could not parse envar: ", err)
 	}
 
 	created, err := strconv.Atoi(os.Getenv("created"))
 	if err != nil {
-		exitErrorf("could not convert type: ", err)
+		exitErrorf("could not parse envar: ", err)
 	}
 
 	modified, err := strconv.Atoi(os.Getenv("modified"))
 	if err != nil {
-		exitErrorf("could not convert type: ", err)
+		exitErrorf("could not parse envar: ", err)
 	}
 
 	downloaded, err := strconv.Atoi(os.Getenv("downloaded"))
 	if err != nil {
-		exitErrorf("could not convert type: ", err)
+		exitErrorf("could not parse envar: ", err)
 	}
 
 	// configure Artifactory client
@@ -175,7 +179,7 @@ func handler() error {
 		exitErrorf("could not list artifacts: ", err)
 	}
 
-	err = upload(report, bucket, repo)
+	err = upload(report, bucket, region, repo)
 	if err != nil {
 		exitErrorf("could not upload report: ", err)
 	}
