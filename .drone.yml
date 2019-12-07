@@ -1,15 +1,26 @@
-pipeline:
-  build:
-    image: golang:alpine
-    commands:
-      - apk --no-cache add git
-      - GOARCH=amd64 GOOS=linux go build artibot.go
-    when:
-      event: 
-        - push
-        - pull_request
-  sonar-scanner:
-    image: quay.io/ukhomeofficedigital/sonar-scanner:v3.0.3
-    when:
-      event:
-        - pull_request
+kind: pipeline
+name: default
+type: kubernetes
+
+platform:
+  os: linux
+  arch: amd64
+
+steps:
+- name: build
+  pull: if-not-exists
+  image: golang:1.14-alpine
+  commands:
+  - apk --no-cache add git
+  - GOARCH=amd64 GOOS=linux go build artibot.go
+  when:
+    event:
+    - push
+    - pull_request
+
+- name: sonar-scanner
+  pull: if-not-exists
+  image: quay.io/ukhomeofficedigital/sonar-scanner:v3.0.3
+  when:
+    event:
+    - pull_request

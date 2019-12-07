@@ -1,0 +1,21 @@
+version: 2
+jobs:
+  test_build:
+    docker:
+      - image: golang:alpine
+    steps:
+      - checkout
+      - run:
+          name: Install build dependencies
+          command: apk add --no-cache git
+      - run:
+          name: Install dependencies
+          command: go mod download
+      - run:
+          name: Build 
+          command: GOARCH=amd64 GOOS=linux go build artibot.go
+workflows:
+  version: 2
+  build:
+    jobs:
+      - test_build

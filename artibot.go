@@ -17,37 +17,38 @@ import (
 	lib "github.com/lusis/go-artifactory/artifactory.v54"
 )
 
-// aqlStats represents the structure of the artifact statistics
+// aqlStats represents artifact statistics
 type aqlStats struct {
 	Downloaded string `json:"downloaded,omitempty"`
 }
 
-// extendedAQLFileInfo adds AQLStats to upstream struct
+// extendedAQLFileInfo adds aqlStats to upstream struct
 type extAQLFileInfo struct {
 	*lib.AQLFileInfo
 	Stats []aqlStats `json:"stats,omitempty"`
 }
 
-// extendedAQLResults adds AQLStats to upstream struct
+// extendedAQLResults adds aqlStats to upstream struct
 type extAQLResults struct {
 	*lib.AQLResults
 	ExtResults []extAQLFileInfo `json:"results"`
 }
 
-// handle errors and exit
+// exitErrorf handles errors and exits
 func exitErrorf(msg string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, msg+"\n", args...)
 	os.Exit(1)
 }
 
-// search for artifacts not modified or downloaded in n months
+// search finds artifacts not modified or downloaded in n months
 func search(cl *lib.Client, r string, c, m, d int) ([]byte, []extAQLFileInfo, error) {
-	// construct AQL query request
+
+	// construct and make AQL request
 	var request lib.Request
 	request.Verb = "POST"
 	request.Path = "/api/search/aql"
 	aqlString := fmt.Sprintf(`items.find(
-		{
+			{
 			"$and": [
 				{"repo":"%s"},
 				{"created": {"$before": "%dmo"}},
@@ -62,7 +63,6 @@ func search(cl *lib.Client, r string, c, m, d int) ([]byte, []extAQLFileInfo, er
 	request.Body = bytes.NewReader([]byte(aqlString))
 	request.ContentType = "text/plain"
 
-	// make request
 	resp, err := cl.HTTPRequest(request)
 	if err != nil {
 		exitErrorf("could not query Artifactory API: ", err)
@@ -79,7 +79,7 @@ func search(cl *lib.Client, r string, c, m, d int) ([]byte, []extAQLFileInfo, er
 	return resp, list, nil
 }
 
-// upload the list to s3
+// upload AQL search results to S3
 func upload(resp []byte, b, rg, r string) error {
 
 	// put bytes in reader
@@ -89,6 +89,9 @@ func upload(resp []byte, b, rg, r string) error {
 	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String(rg)},
 	)
+	if err != nil {
+		exitErrorf("could not init S3 session: ", err)
+	}
 
 	// use timestamp and repo as filename
 	t := time.Now()
@@ -111,7 +114,7 @@ func upload(resp []byte, b, rg, r string) error {
 	return nil
 }
 
-// delete the artifacts found by search
+// delete makes API calls to remove those artifacts
 func delete(cl *lib.Client, list *[]extAQLFileInfo) error {
 
 	// range over list and make delete calls to Artifactory
@@ -173,7 +176,7 @@ func handler() error {
 		exitErrorf("could not init Artifactory client: ", err)
 	}
 
-	// find old artifacts and upload the list to s3
+	// find unused artifacts and upload the list to S3
 	report, list, err := search(client, repo, created, modified, downloaded)
 	if err != nil {
 		exitErrorf("could not list artifacts: ", err)
@@ -184,8 +187,8 @@ func handler() error {
 		exitErrorf("could not upload report: ", err)
 	}
 
-	// delete old artifacts
-	if dry == false {
+	// delete unused artifacts
+	if !dry {
 		err := delete(client, &list)
 		if err != nil {
 			exitErrorf("could not delete artifacts: ", err)
